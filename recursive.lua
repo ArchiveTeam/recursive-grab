@@ -338,7 +338,7 @@ wget.callbacks.finish = function(start_time, end_time, wall_time, numurls, total
   file:close()
   local targets = {}
   for name, key in pairs(job_config["keys"]) do
-    targets["recursive-" .. item_job .. "-" .. name .. "-" .. key .. "?shard=job:" .. item_job .. ":" .. name] = discovered[name]
+    targets["recursive-" .. item_job .. "-" .. name .. "-" .. key .. "?shard=job-" .. item_job .. "-" .. name] = discovered[name]
   end
   for key, data in pairs(targets) do
     print("queuing for", string.match(key, "^([^%?]+)%-"))
