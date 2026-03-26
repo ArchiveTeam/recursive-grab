@@ -237,14 +237,12 @@ wget.callbacks.download_child_p = function(urlpos, parent, depth, start_url_pars
 end
 
 bad_code = function(status_code)
-  return status_code ~= 200
-    and status_code ~= 301
-    and status_code ~= 302
-    and status_code ~= 303
-    and status_code ~= 307
-    and status_code ~= 308
-    and status_code ~= 404
-    and status_code ~= 410
+  for _, code in pairs(job_config["status_codes"]["accept"]) do
+    if status_code == code then
+      return true
+    end
+  end
+  return false
 end
 
 wget.callbacks.write_to_warc = function(url, http_stat)
