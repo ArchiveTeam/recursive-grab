@@ -1,6 +1,6 @@
 # recursive-grab
 
-More information about the archiving project can be found on the ArchiveTeam wiki: [Recursive](https://wiki.archiveteam.org/index.php?title=Recursive)
+More information about the archiving project can be found on the ArchiveTeam wiki: [Distributed_recursive_crawls](https://wiki.archiveteam.org/index.php?title=Distributed_recursive_crawls)
 
 ## Donations
 
@@ -27,7 +27,7 @@ We strongly encourage you to join the IRC channel associated with this project i
 
 #### Archive Team Warrior (recommended for most users)
 
-This and other archiving projects can easily be run using the [Archive Team Warrior](https://wiki.archiveteam.org/index.php/ArchiveTeam_Warrior) virtual machine. Follow the [instructions on the Archive Team wiki](https://wiki.archiveteam.org/index.php/ArchiveTeam_Warrior) for installing the Warrior, and from the web interface running at `http://localhost:8001/`, enter the nickname that you want to be shown as on the tracker. There is no registration, just pick a nickname you like. Then, select the `Recursive` project in the Warrior interface.
+This and other archiving projects can easily be run using the [Archive Team Warrior](https://wiki.archiveteam.org/index.php/ArchiveTeam_Warrior) virtual machine. Follow the [instructions on the Archive Team wiki](https://wiki.archiveteam.org/index.php/ArchiveTeam_Warrior) for installing the Warrior, and from the web interface running at `http://localhost:8001/`, enter the nickname that you want to be shown as on the tracker. There is no registration, just pick a nickname you like. Then, select the `Recursive Jobs` project in the Warrior interface.
 
 #### Project-specific Docker container (for more advanced users)
 

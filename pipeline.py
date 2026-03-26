@@ -77,7 +77,7 @@ if not WGET_AT:
 #
 # Update this each time you make a non-cosmetic change.
 # It will be added to the WARC files and reported to the tracker.
-VERSION = '20260326.01'
+VERSION = '20260326.02'
 #USER_AGENT = 'Mozilla/5.0 (X11; Linux i686; rv:124.0) Gecko/20100101 Firefox/124.0'
 TRACKER_ID = 'recursive'
 TRACKER_HOST = 'legacy-api.arpa.li'
@@ -310,7 +310,6 @@ class WgetArgs(object):
             '--timeout', '30',
             '--connect-timeout', '1',
             '--tries', 'inf',
-            '--domains', 'numerabilis.u-paris.fr,biusante.parisdescartes.fr',
             '--span-hosts',
             '--waitretry', '30',
             '--warc-file', ItemInterpolation('%(item_dir)s/%(warc_file_base)s'),
@@ -334,6 +333,8 @@ class WgetArgs(object):
 
         item['job_urls'] = []
 
+        domains = set()
+
         for item_name in item['item_name'].split('\0'):
             wget_args.extend(['--warc-header', 'x-wget-at-project-item-name: '+item_name])
             wget_args.append('item-name://'+item_name)
@@ -341,6 +342,9 @@ class WgetArgs(object):
             assert item['item_job'] == item_job
             item['job_urls'].append(item_url)
             wget_args.append(item_url)
+            domains.add(normalize_url(item_url).split('/', 3)[2])
+
+        #wget_args.extend(['--domains', ','.join(domains)])
 
         item['job_urls'] = json.dumps(item['job_urls'])
 
