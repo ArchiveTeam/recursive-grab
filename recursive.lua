@@ -127,6 +127,35 @@ set_item = function(url)
   end
 end
 
+find_path_loop = function(url, max_repetitions)
+  if not max_repetitions then
+    return false
+  end
+  local tested = {}
+  local tempurl = urlparse.unescape(url)
+  tempurl = string.match(tempurl, "^https?://[^/]+(.*)$")
+  if not tempurl then
+    return false
+  end
+  for s in string.gmatch(tempurl, "([^/%?&]+)") do
+    s = string.lower(s)
+    if not tested[s] then
+      if s == "" then
+        tested[s] = -2
+      elseif string.match(s, "^[0-9]+$") then
+        tested[s] = -1
+      else
+        tested[s] = 0
+      end
+    end
+    tested[s] = tested[s] + 1
+    if tested[s] == max_repetitions then
+      return true
+    end
+  end
+  return false
+end
+
 maybe_accept = function(candidate, accept)
   for _, pattern in pairs(job_config["reject"] or {}) do
     if string.match(candidate, pattern) then
@@ -139,6 +168,10 @@ maybe_accept = function(candidate, accept)
       discover_item("rejected", candidate)
       return "rejected"
     end
+  end
+  if find_path_loop(candidate, job_config["max_path_loop_depth"]) then
+    discover_item("rejected", candidate)
+    return "rejected"
   end
   if accept then
     discover_item("accepted", candidate)
