@@ -77,7 +77,7 @@ if not WGET_AT:
 #
 # Update this each time you make a non-cosmetic change.
 # It will be added to the WARC files and reported to the tracker.
-VERSION = '20260326.02'
+VERSION = '20260326.03'
 #USER_AGENT = 'Mozilla/5.0 (X11; Linux i686; rv:124.0) Gecko/20100101 Firefox/124.0'
 TRACKER_ID = 'recursive'
 TRACKER_HOST = 'legacy-api.arpa.li'
@@ -368,8 +368,8 @@ project = Project(
     title=TRACKER_ID,
     project_html='''
         <img class="project-logo" alt="Project logo" src="" height="50px" title="https://wiki.archiveteam.org/images/thumb/f/f3/Archive_team.png/235px-Archive_team.png"/>
-        <h2>Recursive Warrior Crawls <span class="links"><a href="https://tracker.archiveteam.org/recursive/">Leaderboard</a> &middot; <a href="https://wiki.archiveteam.org/index.php/Recursive_Warrior_Crawls">Wiki</a></span></h2>
-        <p>Running recursive Warrior crawls.</p>
+        <h2>Recursive Jobs <span class="links"><a href="https://tracker.archiveteam.org/recursive/">Leaderboard</a> &middot; <a href="https://wiki.archiveteam.org/index.php/Distributed_recursive_crawls">Wiki</a></span></h2>
+        <p>Running recursive Warrior crawl jobs.</p>
     '''
 )
 
