@@ -239,10 +239,10 @@ end
 bad_code = function(status_code)
   for _, code in pairs(job_config["status_codes"]["accept"]) do
     if status_code == code then
-      return true
+      return false
     end
   end
-  return false
+  return true
 end
 
 wget.callbacks.write_to_warc = function(url, http_stat)
@@ -257,9 +257,8 @@ wget.callbacks.write_to_warc = function(url, http_stat)
   end
   if bad_code(http_stat["statcode"]) then
     print("Not writing to WARC.")
+    retry_url = true
     return false
-  elseif http_stat["statcode"] ~= 200 then
-    return true
   end
   if abortgrab then
     print("Not writing to WARC.")
@@ -314,7 +313,7 @@ wget.callbacks.httploop_result = function(url, err, http_stat)
     return wget.actions.EXIT
   end
 
-  if bad_code(status_code) then
+  if bad_code(status_code) or retry_url then
     io.stdout:write("Server returned " .. http_stat.statcode .. " (" .. err .. ").\n")
     io.stdout:flush()
     report_bad_item(item_name)
