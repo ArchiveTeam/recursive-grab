@@ -77,8 +77,7 @@ if not WGET_AT:
 #
 # Update this each time you make a non-cosmetic change.
 # It will be added to the WARC files and reported to the tracker.
-VERSION = '20260405.01'
-#USER_AGENT = 'Mozilla/5.0 (X11; Linux i686; rv:124.0) Gecko/20100101 Firefox/124.0'
+VERSION = '20260407.01'
 TRACKER_ID = 'recursive'
 TRACKER_HOST = 'legacy-api.arpa.li'
 MULTI_ITEM_SIZE = 100
@@ -334,6 +333,11 @@ class WgetArgs(object):
         item['job_urls'] = []
 
         domains = set()
+
+        job_config = json.loads(item['job_config'])
+        for k in ('reject_subnets', 'prefer_subnets', 'defer_subnets', 'reject_subnets'):
+            if k in job_config:
+                wget_args.extend(['--'+k.replace('_', '-'), ','.join(job_config[k])])
 
         for item_name in item['item_name'].split('\0'):
             wget_args.extend(['--warc-header', 'x-wget-at-project-item-name: '+item_name])
