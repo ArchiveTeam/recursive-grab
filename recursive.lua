@@ -111,6 +111,7 @@ normalize_url = function(url)
       candidate_current = a .. b
     end
   end
+  candidate_current = string.gsub(candidate_current, "^https?", "")
   return candidate_current
 end
 

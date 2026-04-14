@@ -31,6 +31,8 @@ from seesaw.util import find_executable
 
 from tornado import httpclient
 
+import dns.exception
+import dns.resolver
 import requests
 import json
 
@@ -77,10 +79,20 @@ if not WGET_AT:
 #
 # Update this each time you make a non-cosmetic change.
 # It will be added to the WARC files and reported to the tracker.
-VERSION = '20260407.01'
+VERSION = '20260414.01'
 TRACKER_ID = 'recursive'
 TRACKER_HOST = 'legacy-api.arpa.li'
 MULTI_ITEM_SIZE = 100
+DNS_SERVERS = [
+    '9.9.9.10',
+    '149.112.112.10',
+    '2620:fe::10',
+    '2620:fe::fe:10'
+]
+
+dns_resolver = dns.resolver.Resolver(configure=False)
+dns_resolver.nameservers = DNS_SERVERS
+dns_resolver.cache = dns.resolver.Cache()
 
 
 ###########################################################################
@@ -161,15 +173,6 @@ class MoveFiles(SimpleTask):
         shutil.rmtree('%(item_dir)s' % item)
 
 
-def normalize_string(s):
-    while True:
-        temp = unquote(s).strip().lower()
-        if temp == s:
-            break
-        s = temp
-    return s
-
-
 class SortAndSelectItems(SimpleTask):
     ORDER = []
     ITEMS = {}
@@ -227,9 +230,9 @@ class SetBadUrls(SimpleTask):
     def process(self, item):
         item['item_name_original'] = item['item_name']
         items = item['item_name'].split('\0')
-        items_lower = [item['item_job']+':'+normalize_url(url) for url in json.loads(item['job_urls'])]
+        items_lower = [normalize_url(item['item_job']+':'+url, with_job=True) for url in json.loads(item['job_urls'])]
         with open('%(item_dir)s/%(warc_file_base)s_bad-items.txt' % item, 'r') as f:
-            for url in {normalize_url(url) for url in f}:
+            for url in {normalize_url(url, with_job=True) for url in f}:
                 index = items_lower.index(url)
                 items.pop(index)
                 items_lower.pop(index)
@@ -252,6 +255,7 @@ def normalize_url(url, with_job=False):
         url[2] = url[2].split('@')[-1]
     if ':' in url[2]:
         url[2] = url[2].split(':')[0]
+    url[0] = ''
     url = '/'.join(url)
     if with_job:
         url = job + ':' + url
@@ -293,7 +297,7 @@ class WgetArgs(object):
             '--host-lookups', 'dns',
             '--hosts-file', '/dev/null',
             '--resolvconf-file', '/dev/null',
-            '--dns-servers', '9.9.9.10,149.112.112.10,2620:fe::10,2620:fe::fe:10',
+            '--dns-servers', ','.join(DNS_SERVERS),
             '--reject-reserved-subnets',
             #'--prefer-family', ('IPv4' if 'PREFER_IPV4' in os.environ else 'IPv6'),
             '--content-on-error',
@@ -345,8 +349,22 @@ class WgetArgs(object):
             item_job, item_url = item_name.split(':', 1)
             assert item['item_job'] == item_job
             item['job_urls'].append(item_url)
+            try:
+                if item_url.startswith('https://') \
+                    and any(
+                        answer.address == '209.202.252.66'
+                        for answer in dns_resolver.resolve(
+                            normalize_url(item_url).split('/', 3)[2],
+                            'A',
+                            search=False
+                        )
+                    ):
+                    item.log_output('Switching {} to http://.'.format(item_url))
+                    item_url = 'http:' + item_url.split(':', 1)[1]
+            except dns.exception.DNSException:
+                pass
             wget_args.append(item_url)
-            domains.add(normalize_url(item_url).split('/', 3)[2])
+            #domains.add(normalize_url(item_url).split('/', 3)[2])
 
         #wget_args.extend(['--domains', ','.join(domains)])
 
