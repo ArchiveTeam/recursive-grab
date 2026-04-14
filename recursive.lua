@@ -157,7 +157,7 @@ find_path_loop = function(url, max_repetitions)
   return false
 end
 
-maybe_accept = function(candidate, accept)
+maybe_accept = function(candidate)
   for _, pattern in pairs(job_config["reject"] or {}) do
     if string.match(candidate, pattern) then
       discover_item("rejected", candidate)
@@ -174,23 +174,36 @@ maybe_accept = function(candidate, accept)
     discover_item("rejected", candidate)
     return "rejected"
   end
-  if accept then
-    discover_item("accepted", candidate)
-    return "accepted"
+  discover_item("accepted", candidate)
+  return "accepted"
+end
+
+fix_accepted = function(url)
+  local domain, path = string.match(url, "^[hH][tT][tT][pP][sS]?://([^/#%?&;]+)([^#]*)")
+  if not domain or string.match(domain, "@") then
+    return url
   end
+  domain, port = string.match(domain, "^(.-)(:?[0-9]*)$")
+  domain = string.lower(string.match(domain, "^(.-)%.*$"))
+  if not string.match(path, "^/") then
+    path = "/" .. path
+  end
+  return "https://" .. domain .. port .. path
 end
 
 discovery_check = function(url, parenturl)
   for _, pattern in pairs(job_config["accept"] or {}) do
     if string.match(url, pattern) then
-      if maybe_accept(url, true) then
+      url = fix_accepted(url)
+      if maybe_accept(url) then
         return true
       end
     end
   end
   for _, pattern in pairs(job_config["~accept"] or {}) do
     if not string.match(url, pattern) then
-      if maybe_accept(url, true) then
+      url = fix_accepted(url)
+      if maybe_accept(url) then
         return true
       end
     end
@@ -204,7 +217,7 @@ discovery_check = function(url, parenturl)
         end
         for _, pattern in pairs(patterns) do
           if string.match(url, pattern) then
-            if maybe_accept(url, true) then
+            if maybe_accept(url) then
               return true
             end
           end
@@ -224,12 +237,12 @@ wget.callbacks.download_child_p = function(urlpos, parent, depth, start_url_pars
 
   if job_config["accept_refresh"]
     and urlpos["link_refresh_p"] ~= 0 then
-    maybe_accept(url, true)
+    maybe_accept(url)
   end
 
   if job_config["accept_inline"]
     and urlpos["link_inline_p"] ~= 0 then
-    maybe_accept(url, true)
+    maybe_accept(url)
   end
 
   discovery_check(url, parenturl)
