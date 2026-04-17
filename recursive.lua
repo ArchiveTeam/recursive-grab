@@ -157,24 +157,30 @@ find_path_loop = function(url, max_repetitions)
   return false
 end
 
-maybe_accept = function(candidate)
+maybe_queue = function(decision, candidate, do_queue)
+  if do_queue then
+    discover_item(decision, candidate)
+  end
+end
+
+maybe_accept = function(candidate, do_queue)
   for _, pattern in pairs(job_config["reject"] or {}) do
     if string.match(candidate, pattern) then
-      discover_item("rejected", candidate)
+      maybe_queue("rejected", candidate, do_queue)
       return "rejected"
     end
   end
   for _, pattern in pairs(job_config["~reject"] or {}) do
     if not string.match(candidate, pattern) then
-      discover_item("rejected", candidate)
+      maybe_queue("rejected", candidate, do_queue)
       return "rejected"
     end
   end
   if find_path_loop(candidate, job_config["max_path_loop_depth"]) then
-    discover_item("rejected", candidate)
+    maybe_queue("rejected", candidate, do_queue)
     return "rejected"
   end
-  discover_item("accepted", candidate)
+  maybe_queue("accepted", candidate, do_queue)
   return "accepted"
 end
 
@@ -191,11 +197,11 @@ fix_accepted = function(url)
   return "https://" .. domain .. port .. path
 end
 
-discovery_check = function(url, parenturl)
+discovery_check = function(url, parenturl, do_queue)
   for _, pattern in pairs(job_config["accept"] or {}) do
     if string.match(url, pattern) then
       url = fix_accepted(url)
-      if maybe_accept(url) then
+      if maybe_accept(url, do_queue) then
         return true
       end
     end
@@ -203,7 +209,7 @@ discovery_check = function(url, parenturl)
   for _, pattern in pairs(job_config["~accept"] or {}) do
     if not string.match(url, pattern) then
       url = fix_accepted(url)
-      if maybe_accept(url) then
+      if maybe_accept(url, do_queue) then
         return true
       end
     end
@@ -217,7 +223,7 @@ discovery_check = function(url, parenturl)
         end
         for _, pattern in pairs(patterns) do
           if string.match(url, pattern) then
-            if maybe_accept(url) then
+            if maybe_accept(url, do_queue) then
               return true
             end
           end
@@ -226,7 +232,7 @@ discovery_check = function(url, parenturl)
     end
   end
 
-  discover_item("not_accepted", url)
+  maybe_queue("not_accepted", url, do_queue)
 
   return false
 end
@@ -235,17 +241,21 @@ wget.callbacks.download_child_p = function(urlpos, parent, depth, start_url_pars
   local url = urlpos["url"]["url"]
   local parenturl = parent and parent["url"] or nil
 
+  if parenturl and not discovery_check(parenturl, false) then
+    return false
+  end
+
   if job_config["accept_refresh"]
     and urlpos["link_refresh_p"] ~= 0 then
-    maybe_accept(url)
+    maybe_accept(url, true)
   end
 
   if job_config["accept_inline"]
     and urlpos["link_inline_p"] ~= 0 then
-    maybe_accept(url)
+    maybe_accept(url, true)
   end
 
-  discovery_check(url, parenturl)
+  discovery_check(url, parenturl, true)
 
   return false
 end
@@ -317,7 +327,7 @@ wget.callbacks.httploop_result = function(url, err, http_stat)
       or status_code == 303
       or status_code == 308
     ) then
-      discovery_check(newloc, url["url"])
+      discovery_check(newloc, url["url"], true)
       return wget.actions.EXIT
     end
   end
