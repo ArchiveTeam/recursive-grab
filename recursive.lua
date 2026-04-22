@@ -1,4 +1,5 @@
 local urlparse = require("socket.url")
+local dns = require("socket").dns
 local http = require("socket.http")
 local https = require("ssl.https")
 local cjson = require("cjson")
@@ -120,6 +121,14 @@ for _, url in pairs(job_urls) do
   urls[normalize_url(url)] = true
 end
 
+local accept_ip_list = job_config["accept_ips"] or {}
+local accept_ips = {}
+local accept_ip_count = #accept_ip_list
+for _, ip in pairs(accept_ip_list) do
+  accept_ips[ip] = true
+end
+local accept_ip_cache = {}
+
 set_item = function(url)
   local candidate_current = normalize_url(url)
   if candidate_current ~= item_url and urls[candidate_current] then
@@ -197,6 +206,33 @@ fix_accepted = function(url)
   return "https://" .. domain .. port .. path
 end
 
+accept_ip = function(url)
+  if accept_ip_count == 0 then
+    return false
+  end
+  local domain = string.match(url, "^[hH][tT][tT][pP][sS]?://([^/#%?&;]+)")
+  if not domain or string.match(domain, "@") then
+    return false
+  end
+  domain = string.match(domain, "^(.-):[0-9]+$") or domain
+  domain = string.lower(string.match(domain, "^(.-)%.*$"))
+  if accept_ip_cache[domain] ~= nil then
+    return accept_ip_cache[domain]
+  end
+  local records = dns.getaddrinfo(domain)
+  if type(records) == "table" then
+    for _, record in pairs(records) do
+      if record["addr"]
+        and accept_ips[record["addr"]] then
+        accept_ip_cache[domain] = true
+        return true
+      end
+    end
+  end
+  accept_ip_cache[domain] = false
+  return false
+end
+
 discovery_check = function(url, parenturl, do_queue)
   for _, pattern in pairs(job_config["accept"] or {}) do
     if string.match(url, pattern) then
@@ -229,6 +265,13 @@ discovery_check = function(url, parenturl, do_queue)
           end
         end
       end
+    end
+  end
+
+  if accept_ip(url) then
+    url = fix_accepted(url)
+    if maybe_accept(url, do_queue) then
+      return true
     end
   end
 
@@ -427,4 +470,3 @@ wget.callbacks.before_exit = function(exit_status, exit_status_string)
   end
   return exit_status
 end
-
