@@ -1,5 +1,6 @@
 local urlparse = require("socket.url")
-local dns = require("socket").dns
+local socket = require("socket")
+local dns = require("org.conman.dns")
 local http = require("socket.http")
 local https = require("ssl.https")
 local cjson = require("cjson")
@@ -121,13 +122,18 @@ for _, url in pairs(job_urls) do
   urls[normalize_url(url)] = true
 end
 
-local accept_ip_list = job_config["accept_ips"] or {}
 local accept_ips = {}
-local accept_ip_count = #accept_ip_list
-for _, ip in pairs(accept_ip_list) do
+local accept_ip_record_types = {}
+for _, ip in pairs(job_config["accept_ips"] or {}) do
   accept_ips[ip] = true
+  if string.match(ip, ":") then
+    accept_ip_record_types["AAAA"] = true
+  else
+    accept_ip_record_types["A"] = true
+  end
 end
 local accept_ip_cache = {}
+local dns_servers = cjson.decode(os.getenv("dns_servers"))
 
 set_item = function(url)
   local candidate_current = normalize_url(url)
@@ -207,26 +213,65 @@ fix_accepted = function(url)
 end
 
 accept_ip = function(url)
-  if accept_ip_count == 0 then
-    return false
-  end
   local domain = string.match(url, "^[hH][tT][tT][pP][sS]?://([^/#%?&;]+)")
   if not domain or string.match(domain, "@") then
     return false
   end
   domain = string.match(domain, "^(.-):[0-9]+$") or domain
   domain = string.lower(string.match(domain, "^(.-)%.*$"))
+  if accept_ips[domain] then
+    return true
+  end
   if accept_ip_cache[domain] ~= nil then
     return accept_ip_cache[domain]
   end
-  local records = dns.getaddrinfo(domain)
-  if type(records) == "table" then
-    for _, record in pairs(records) do
-      if record["addr"]
-        and accept_ips[record["addr"]] then
-        accept_ip_cache[domain] = true
-        return true
+  for record_type in pairs(accept_ip_record_types) do
+    local dns_result = false
+    local dns_tries = 0
+    while not dns_result and dns_tries < 5 do
+      local packet = dns.encode({
+        ["id"] = math.random(65535),
+        ["query"] = true,
+        ["rd"] = true,
+        ["question"] = {
+          ["name"] = domain .. ".",
+          ["type"] = record_type
+        }
+      })
+      for _, server in pairs(dns_servers) do
+        local udp = socket.udp()
+        udp:settimeout(1)
+        udp:sendto(packet, server, 53)
+        local response = udp:receive()
+        udp:close()
+        if response then
+          local decoded = dns.decode(response)
+          if decoded then
+            if decoded["rcode"] == 0 then
+              dns_result = true
+              for _, record in pairs(decoded["answers"]) do
+                if accept_ips[record["address"]] then
+                  accept_ip_cache[domain] = true
+                  return true
+                end
+              end
+              break
+            elseif decoded["rcode"] == 3 then
+              dns_result = true
+              break
+            end
+          end
+        end
       end
+      if not dns_result then
+        dns_tries = dns_tries + 1
+        if dns_tries < 5 then
+          os.execute("sleep " .. math.floor(math.pow(2, dns_tries - 1)))
+        end
+      end
+    end
+    if not dns_result then
+      error("DNS resolver errors.")
     end
   end
   accept_ip_cache[domain] = false
