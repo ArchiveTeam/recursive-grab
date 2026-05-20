@@ -79,7 +79,7 @@ if not WGET_AT:
 #
 # Update this each time you make a non-cosmetic change.
 # It will be added to the WARC files and reported to the tracker.
-VERSION = '20260520.01'
+VERSION = '20260520.02'
 TRACKER_ID = 'recursive'
 TRACKER_HOST = 'legacy-api.arpa.li'
 MULTI_ITEM_SIZE = 100
@@ -119,6 +119,10 @@ class CheckIP(SimpleTask):
             ip_set.add(socket.gethostbyname('microsoft.com'))
             ip_set.add(socket.gethostbyname('icanhas.cheezburger.com'))
             ip_set.add(socket.gethostbyname('archiveteam.org'))
+
+            if requests.get('https://eshizuoka.jp/', timeout=10).status_code != 200:
+                item.log_output('Looks like you do not have access to https://eshizuoka.jp/.')
+                raise Exception('Looks like you do not have access to https://eshizuoka.jp/.')
 
             if len(ip_set) != 5:
                 item.log_output('Got IP addresses: {0}'.format(ip_set))
