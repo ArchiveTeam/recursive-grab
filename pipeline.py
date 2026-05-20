@@ -79,7 +79,7 @@ if not WGET_AT:
 #
 # Update this each time you make a non-cosmetic change.
 # It will be added to the WARC files and reported to the tracker.
-VERSION = '20260520.02'
+VERSION = '20260520.03'
 TRACKER_ID = 'recursive'
 TRACKER_HOST = 'legacy-api.arpa.li'
 MULTI_ITEM_SIZE = 100
@@ -393,7 +393,7 @@ class WgetArgs(object):
 project = Project(
     title=TRACKER_ID,
     project_html='''
-        <img class="project-logo" alt="Project logo" src="" height="50px" title="https://wiki.archiveteam.org/images/thumb/f/f3/Archive_team.png/235px-Archive_team.png"/>
+        <img class="project-logo" alt="Project logo" src="" height="50px" title="https://wiki.archiveteam.org/images/thumb/7/77/ArchiveTeamWarriorLogo.png/235px-ArchiveTeamWarriorLogo.png"/>
         <h2>Recursive Jobs <span class="links"><a href="https://tracker.archiveteam.org/recursive/">Leaderboard</a> &middot; <a href="https://wiki.archiveteam.org/index.php/Distributed_recursive_crawls">Wiki</a></span></h2>
         <p>Running recursive Warrior crawl jobs.</p>
     '''
