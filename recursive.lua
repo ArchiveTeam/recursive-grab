@@ -172,9 +172,21 @@ find_path_loop = function(url, max_repetitions)
   return false
 end
 
+percent_encode_url = function(url)
+  local temp = ""
+  for c in string.gmatch(url, "(.)") do
+    local b = string.byte(c)
+    if b < 32 or b > 126 then
+      c = string.format("%%%02X", b)
+    end
+    temp = temp .. c
+  end
+  return temp
+end
+
 maybe_queue = function(decision, candidate, do_queue)
   if do_queue then
-    discover_item(decision, candidate)
+    discover_item(decision, percent_encode_url(candidate))
   end
 end
 
