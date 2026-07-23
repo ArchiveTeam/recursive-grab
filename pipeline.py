@@ -79,7 +79,7 @@ if not WGET_AT:
 #
 # Update this each time you make a non-cosmetic change.
 # It will be added to the WARC files and reported to the tracker.
-VERSION = '20260723.01'
+VERSION = '20260723.02'
 TRACKER_ID = 'recursive'
 TRACKER_HOST = 'legacy-api.arpa.li'
 MULTI_ITEM_SIZE = 100
@@ -156,6 +156,12 @@ class PrepareDirectories(SimpleTask):
             item_name_hash,
             time.strftime('%Y%m%d-%H%M%S')
         ])
+        job_config = json.loads(item['job_config'])
+        if job_config.get('id'):
+            split_id = job_config['id']
+            if 'slug' in job_config:
+                split_id = job_config['slug'] + '_' + split_id
+            item['warc_file_base'] += '.split-' + split_id
 
         open('%(item_dir)s/%(warc_file_base)s.warc.gz' % item, 'w').close()
         open('%(item_dir)s/%(warc_file_base)s_data.txt' % item, 'w').close()
@@ -330,7 +336,14 @@ class WgetArgs(object):
             concurrency = os.getenv('CONCURRENT_ITEMS')
             if concurrency is None:
                 concurrency = 2
+            else:
+                concurrency = int(concurrency)
         item['concurrency'] = str(concurrency)
+
+        job_config = json.loads(item['job_config'])
+        start_delay = 0
+        if 'sleep_time' in job_config and 'inner' in job_config['sleep_time']:
+            start_delay = random.uniform(0, job_config['sleep_time']['inner'] * concurrency)
 
         wget_args.extend(['--warc-header', 'job: '+item['item_job']])
 
@@ -338,8 +351,7 @@ class WgetArgs(object):
 
         domains = set()
 
-        job_config = json.loads(item['job_config'])
-        for k in ('reject_subnets', 'prefer_subnets', 'defer_subnets', 'reject_subnets'):
+        for k in ('reject_subnets', 'prefer_subnets', 'defer_subnets', 'accept_subnets'):
             if k in job_config:
                 wget_args.extend(['--'+k.replace('_', '-'), ','.join(job_config[k])])
 
@@ -378,6 +390,8 @@ class WgetArgs(object):
             print('*** Wget will bind address at {0} ***'.format(
                 globals()['bind_address']))
             print('')
+
+        time.sleep(start_delay)
 
         return realize(wget_args, item)
 

@@ -4,6 +4,9 @@ local dns = require("org.conman.dns")
 local http = require("socket.http")
 local https = require("ssl.https")
 local cjson = require("cjson")
+local html_entities = require("htmlEntities")
+
+math.randomseed(os.time())
 
 local item_dir = os.getenv("item_dir")
 local warc_file_base = os.getenv("warc_file_base")
@@ -140,6 +143,14 @@ set_item = function(url)
   if candidate_current ~= item_url and urls[candidate_current] then
     item_url = candidate_current
     item_name = item_job .. ":" .. item_url
+    if job_config["queue_parent"] then
+      local parent = string.match(url, "^([^%?#]+)")
+      parent = string.gsub(parent, "/$", "")
+      parent = string.match(parent, "^(https?://[^/]+.*)/[^/]+$")
+      if parent then
+        discovery_check(parent .. "/", url, true)
+      end
+    end
   end
 end
 
@@ -290,46 +301,45 @@ accept_ip = function(url)
   return false
 end
 
-discovery_check = function(url, parenturl, do_queue)
+is_inner_url = function(url, parenturl, ignore_parent)
   for _, pattern in pairs(job_config["accept"] or {}) do
     if string.match(url, pattern) then
-      url = fix_accepted(url)
-      if maybe_accept(url, do_queue) then
-        return true
-      end
+      return true, true
     end
   end
   for _, pattern in pairs(job_config["~accept"] or {}) do
     if not string.match(url, pattern) then
-      url = fix_accepted(url)
-      if maybe_accept(url, do_queue) then
-        return true
-      end
+      return true, true
     end
   end
 
-  if parenturl then
-    for parent_pattern, patterns in pairs(job_config["accept_with_parent"] or {}) do
-      if string.match(parenturl, parent_pattern) then
-        if type(patterns) == "string" then
-          patterns = {patterns}
-        end
-        for _, pattern in pairs(patterns) do
-          if string.match(url, pattern) then
-            if maybe_accept(url, do_queue) then
-              return true
-            end
-          end
+  for parent_pattern, patterns in pairs(job_config["accept_with_parent"] or {}) do
+    if ignore_parent or parenturl and string.match(parenturl, parent_pattern) then
+      if type(patterns) == "string" then
+        patterns = {patterns}
+      end
+      for _, pattern in pairs(patterns) do
+        if string.match(url, pattern) then
+          return true, false
         end
       end
     end
   end
 
   if accept_ip(url) then
-    url = fix_accepted(url)
-    if maybe_accept(url, do_queue) then
-      return true
+    return true, true
+  end
+
+  return false, false
+end
+
+discovery_check = function(url, parenturl, do_queue)
+  local inner, fix = is_inner_url(url, parenturl, false)
+  if inner then
+    if fix then
+      url = fix_accepted(url)
     end
+    return maybe_accept(url, do_queue) == "accepted"
   end
 
   maybe_queue("not_accepted", url, do_queue)
@@ -360,10 +370,52 @@ wget.callbacks.download_child_p = function(urlpos, parent, depth, start_url_pars
   return false
 end
 
-bad_code = function(status_code)
+wget.callbacks.get_urls = function(file, url, is_css, iri)
+  local patterns = job_config["extract_from_html"] or {}
+
+  local html = read_file(file)
+  local function check(newurl, inline)
+    newurl = string.gsub(html_entities.decode(newurl), "\\/", "/")
+    newurl = string.match(newurl, "^%s*(.-)%s*$")
+    newurl = urlparse.absolute(url, newurl)
+    if not newurl or not string.match(newurl, "^https?://") then
+      return
+    end
+    newurl = string.match(newurl, "^([^#]+)")
+    if inline and job_config["accept_inline"] then
+      maybe_accept(newurl, true)
+    end
+    discovery_check(newurl, url, true)
+  end
+
+  for _, pattern in pairs(patterns["inline"] or {}) do
+    for newurl in string.gmatch(html, pattern) do
+      check(newurl, true)
+    end
+  end
+  for _, pattern in pairs(patterns["links"] or {}) do
+    for newurl in string.gmatch(html, pattern) do
+      check(newurl, false)
+    end
+  end
+  return {}
+end
+
+bad_code = function(status_code, url)
   for _, code in pairs(job_config["status_codes"]["accept"]) do
     if status_code == code then
       return false
+    end
+  end
+  for _, rule in pairs(job_config["status_codes"]["accept_with_url"] or {}) do
+    for _, pattern in pairs(rule["patterns"]) do
+      if string.match(url, pattern) then
+        for _, code in pairs(rule["codes"]) do
+          if status_code == code then
+            return false
+          end
+        end
+      end
     end
   end
   return true
@@ -379,7 +431,7 @@ wget.callbacks.write_to_warc = function(url, http_stat)
   if not item_name then
     error("No item name found.")
   end
-  if bad_code(http_stat["statcode"]) then
+  if bad_code(status_code, url["url"]) then
     print("Not writing to WARC.")
     retry_url = true
     return false
@@ -403,13 +455,28 @@ wget.callbacks.httploop_result = function(url, err, http_stat)
   end
   logged_response = false
 
-  if killgrab then
-    return wget.actions.ABORT
-  end
-
   set_item(url["url"])
   if not item_name then
     error("No item name found.")
+  end
+
+  local sleep_time_config = job_config["sleep_time"] or {}
+  local sleep_time = sleep_time_config["outer"] or 0
+  if is_inner_url(url["url"], nil, true) then
+    sleep_time = sleep_time_config["inner"] or 0
+  end
+  for pattern, value in pairs(sleep_time_config["with_url"] or {}) do
+    if string.match(url["url"], pattern) then
+      sleep_time = value
+    end
+  end
+  sleep_time = sleep_time * concurrency * (0.9 + math.random() * 0.2)
+  if sleep_time > 0.001 then
+    os.execute("sleep " .. sleep_time)
+  end
+
+  if killgrab then
+    return wget.actions.ABORT
   end
 
   if abortgrab then
@@ -422,11 +489,7 @@ wget.callbacks.httploop_result = function(url, err, http_stat)
     if http_stat["newloc"] then
       newloc = urlparse.absolute(url["url"], http_stat["newloc"])
     end
-    if newloc and (
-      status_code == 301
-      or status_code == 303
-      or status_code == 308
-    ) then
+    if newloc and not bad_code(status_code, url["url"]) then
       discovery_check(newloc, url["url"], true)
       return wget.actions.EXIT
     end
@@ -437,7 +500,7 @@ wget.callbacks.httploop_result = function(url, err, http_stat)
     return wget.actions.EXIT
   end
 
-  if bad_code(status_code) or retry_url then
+  if bad_code(status_code, url["url"]) or retry_url then
     io.stdout:write("Server returned " .. http_stat.statcode .. " (" .. err .. ").\n")
     io.stdout:flush()
     report_bad_item(item_name)
@@ -446,12 +509,6 @@ wget.callbacks.httploop_result = function(url, err, http_stat)
 
   if status_code >= 200 and status_code <= 399 then
     downloaded[url["url"]] = true
-  end
-
-  local sleep_time = 0
-
-  if sleep_time > 0.001 then
-    os.execute("sleep " .. sleep_time)
   end
 
   tries = 0
