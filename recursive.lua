@@ -334,6 +334,10 @@ is_inner_url = function(url, parenturl, ignore_parent)
 end
 
 discovery_check = function(url, parenturl, do_queue)
+  local without_params = string.match(url, "^([^%?]+)%?")
+  if without_params then
+    discovery_check(without_params, parenturl, do_queue)
+  end
   local inner, fix = is_inner_url(url, parenturl, false)
   if inner then
     if fix then
