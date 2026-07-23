@@ -82,7 +82,7 @@ discover_item = function(target, item)
         return false
       end
     end
-print("discovered", target, item)
+--print("discovered", target, item)
     discovered[target][item] = true
     return true
   end
