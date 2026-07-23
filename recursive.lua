@@ -350,6 +350,12 @@ end
 wget.callbacks.download_child_p = function(urlpos, parent, depth, start_url_parsed, iri, verdict, reason)
   local url = urlpos["url"]["url"]
   local parenturl = parent and parent["url"] or nil
+  local decoded = string.gsub(urlparse.unescape(url), "\\/", "/")
+  local escaped = string.match(decoded, "\\[\"'](https?://[^\\]+)")
+    or string.match(decoded, "\\[\"'](/[^\\]+)")
+  if escaped then
+    url = urlparse.absolute(parenturl, escaped)
+  end
 
   if parenturl and not discovery_check(parenturl, false) then
     return false
