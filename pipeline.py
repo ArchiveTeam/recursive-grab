@@ -79,7 +79,7 @@ if not WGET_AT:
 #
 # Update this each time you make a non-cosmetic change.
 # It will be added to the WARC files and reported to the tracker.
-VERSION = '20260723.04'
+VERSION = '20260723.05'
 TRACKER_ID = 'recursive'
 TRACKER_HOST = 'legacy-api.arpa.li'
 MULTI_ITEM_SIZE = 100
@@ -360,6 +360,13 @@ class WgetArgs(object):
             wget_args.append('item-name://'+item_name)
             item_job, item_url = item_name.split(':', 1)
             assert item['item_job'] == item_job
+            if '\\' in item_url or '%5C' in item_url or '%5c' in item_url:
+                decoded = unquote(item_url).replace('\\/', '/')
+                escaped = re.search(r'\\["\'](https?://[^\\]+|/[^\\]+)', decoded)
+                if escaped:
+                    item_url = escaped.group(1)
+                    if item_url.startswith('/'):
+                        item_url = re.match(r'^(https?://[^/]+)', decoded).group(1) + item_url
             item['job_urls'].append(item_url)
             try:
                 if item_url.startswith('https://') \

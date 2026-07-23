@@ -351,6 +351,10 @@ wget.callbacks.download_child_p = function(urlpos, parent, depth, start_url_pars
   local url = urlpos["url"]["url"]
   local parenturl = parent and parent["url"] or nil
   local decoded = string.gsub(urlparse.unescape(url), "\\/", "/")
+  local scheme = string.match(decoded, "\\[\"']([0-9a-zA-Z+%.%-]+):")
+  if scheme and string.lower(scheme) ~= "http" and string.lower(scheme) ~= "https" then
+    return false
+  end
   local escaped = string.match(decoded, "\\[\"'](https?://[^\\]+)")
     or string.match(decoded, "\\[\"'](/[^\\]+)")
   if escaped then
