@@ -334,6 +334,7 @@ is_inner_url = function(url, parenturl, ignore_parent)
 end
 
 discovery_check = function(url, parenturl, do_queue)
+  url = html_entities.decode(url)
   local without_params = string.match(url, "^([^%?]+)%?")
   if without_params then
     discovery_check(without_params, parenturl, do_queue)

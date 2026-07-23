@@ -19,8 +19,11 @@ import string
 import re
 
 if sys.version_info[0] < 3:
+    from HTMLParser import HTMLParser
     from urllib import unquote
+    html_unescape = HTMLParser().unescape
 else:
+    from html import unescape as html_unescape
     from urllib.parse import unquote
 
 import seesaw
@@ -79,7 +82,7 @@ if not WGET_AT:
 #
 # Update this each time you make a non-cosmetic change.
 # It will be added to the WARC files and reported to the tracker.
-VERSION = '20260723.06'
+VERSION = '20260723.07'
 TRACKER_ID = 'recursive'
 TRACKER_HOST = 'legacy-api.arpa.li'
 MULTI_ITEM_SIZE = 100
@@ -360,6 +363,7 @@ class WgetArgs(object):
             wget_args.append('item-name://'+item_name)
             item_job, item_url = item_name.split(':', 1)
             assert item['item_job'] == item_job
+            item_url = html_unescape(item_url)
             if '\\' in item_url or '%5C' in item_url or '%5c' in item_url:
                 decoded = unquote(item_url).replace('\\/', '/')
                 escaped = re.search(r'\\["\'](https?://[^\\]+|/[^\\]+)', decoded)
