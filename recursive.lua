@@ -446,6 +446,17 @@ wget.callbacks.write_to_warc = function(url, http_stat)
   if not item_name then
     error("No item name found.")
   end
+  if status_code >= 300 and status_code <= 399 and http_stat["newloc"] then
+    local newloc = urlparse.absolute(url["url"], http_stat["newloc"])
+    for _, pattern in pairs(job_config["reject_redirect_to"] or {}) do
+      if newloc and string.match(newloc, pattern) then
+        io.stdout:write("Redirecting to bad URL, aborting.\n")
+        io.stdout:flush()
+        abort_item()
+        return false
+      end
+    end
+  end
   if bad_code(status_code, url["url"]) then
     print("Not writing to WARC.")
     retry_url = true
