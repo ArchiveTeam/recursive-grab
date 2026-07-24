@@ -452,7 +452,7 @@ wget.callbacks.write_to_warc = function(url, http_stat)
       if newloc and string.match(newloc, pattern) then
         io.stdout:write("Redirecting to bad URL, aborting.\n")
         io.stdout:flush()
-        abort_item()
+        retry_url = true
         return false
       end
     end
@@ -510,7 +510,7 @@ wget.callbacks.httploop_result = function(url, err, http_stat)
     return wget.actions.EXIT
   end
 
-  if status_code >= 300 and status_code <= 399 then
+  if status_code >= 300 and status_code <= 399 and not retry_url then
     local newloc = nil
     if http_stat["newloc"] then
       newloc = urlparse.absolute(url["url"], http_stat["newloc"])
