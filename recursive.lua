@@ -366,10 +366,6 @@ wget.callbacks.download_child_p = function(urlpos, parent, depth, start_url_pars
     url = urlparse.absolute(parenturl, escaped)
   end
 
-  if parenturl and not discovery_check(parenturl, false) then
-    return false
-  end
-
   if job_config["accept_refresh"]
     and urlpos["link_refresh_p"] ~= 0 then
     maybe_accept(url, true)
