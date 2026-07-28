@@ -76,13 +76,15 @@ WGET_AT = find_executable(
 if not WGET_AT:
     raise Exception('No usable Wget+At found.')
 
+WGET_AT_COMMAND = [WGET_AT]
+
 
 ###########################################################################
 # The version number of this pipeline definition.
 #
 # Update this each time you make a non-cosmetic change.
 # It will be added to the WARC files and reported to the tracker.
-VERSION = '20260727.01'
+VERSION = '20260728.01'
 TRACKER_ID = 'recursive'
 TRACKER_HOST = 'legacy-api.arpa.li'
 MULTI_ITEM_SIZE = 100
@@ -113,6 +115,48 @@ class CheckIP(SimpleTask):
         # NEW for 2014! Check if we are behind firewall/proxy
 
         if self._counter <= 0:
+            command = WGET_AT_COMMAND + [
+                '-U', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.9; rv:63.0) Gecko/20100101 Firefox/63.0',
+                '--host-lookups', 'dns',
+                '--hosts-file', '/dev/null',
+                '--resolvconf-file', 'resolv.conf',
+                '--dns-servers', ','.join(DNS_SERVERS),
+                '--output-document', '-',
+                '--max-redirect', '0',
+                '--save-headers',
+                '--no-check-certificate',
+                '--no-hsts'
+            ]
+            kwargs = {
+                'timeout': 60,
+                'capture_output': True
+            }
+
+            url = 'https://legacy-api.arpa.li/now'
+            returned = subprocess.run(
+                command+[url],
+                **kwargs
+            )
+            assert returned.returncode == 0, 'Invalid return code {} on {}.'.format(returned.returncode, url)
+            assert re.match(
+                b'^HTTP/1\\.1 200 OK\r\n'
+                b'Server: openresty\r\n'
+                b'Date: [A-Z][a-z]{2}, [0-9]{2} [A-Z][a-z]{2} 202[0-9] [0-9]{2}:[0-9]{2}:[0-9]{2} GMT\r\n'
+                b'Content-Type: text/plain\r\n'
+                b'Connection: keep-alive\r\n'
+                b'Content-Length: 1[0-9]\r\n'
+                b'Cache-Control: no-store\r\n'
+                b'\r\n'
+                b'[0-9]{10}\\.[0-9]{1,3}$',
+                returned.stdout
+            ), 'Bad stdout on {}, got {}.'.format(url, repr(returned.stdout))
+
+            actual_time = float(returned.stdout.rsplit(b'\n', 1)[1])
+            local_time = time.time()
+            max_diff = 180
+            diff = abs(actual_time-local_time)
+            assert diff < max_diff, 'Your time {} is more than {} seconds off of {}.'.format(local_time, max_diff, actual_time)
+
             item.log_output('Checking IP address.')
             ip_set = set()
 
