@@ -84,7 +84,7 @@ WGET_AT_COMMAND = [WGET_AT]
 #
 # Update this each time you make a non-cosmetic change.
 # It will be added to the WARC files and reported to the tracker.
-VERSION = '20260728.01'
+VERSION = '20260728.02'
 TRACKER_ID = 'recursive'
 TRACKER_HOST = 'legacy-api.arpa.li'
 MULTI_ITEM_SIZE = 100

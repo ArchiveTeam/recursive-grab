@@ -52,12 +52,20 @@ kill_grab = function(item)
   killgrab = true
 end
 
-read_file = function(file)
+table_length = function(t)
+  local count = 0
+  for _ in pairs(t) do
+    count = count + 1
+  end
+  return count
+end
+
+read_file = function(file, size_limit)
   if file then
     local f = assert(io.open(file))
-    local data = f:read("*all")
+    local data = f:read(size_limit or "*all")
     f:close()
-    return data
+    return data or ""
   else
     return ""
   end
@@ -383,8 +391,17 @@ end
 
 wget.callbacks.get_urls = function(file, url, is_css, iri)
   local patterns = job_config["extract_from_html"] or {}
+  local inline_patterns = patterns["inline"] or {}
+  local link_patterns = patterns["links"] or {}
 
-  local html = read_file(file)
+  if table_length(inline_patterns) == 0
+    and table_length(link_patterns) == 0 then
+    return {}
+  end
+
+  local max_extract_file_size = job_config["max_extract_file_size"] or 64 * 1024 * 1024
+  local html = read_file(file, max_extract_file_size)
+
   local function check(newurl, inline)
     newurl = string.gsub(html_entities.decode(newurl), "\\/", "/")
     newurl = string.match(newurl, "^%s*(.-)%s*$")
@@ -399,12 +416,12 @@ wget.callbacks.get_urls = function(file, url, is_css, iri)
     discovery_check(newurl, url, true)
   end
 
-  for _, pattern in pairs(patterns["inline"] or {}) do
+  for _, pattern in pairs(inline_patterns) do
     for newurl in string.gmatch(html, pattern) do
       check(newurl, true)
     end
   end
-  for _, pattern in pairs(patterns["links"] or {}) do
+  for _, pattern in pairs(link_patterns) do
     for newurl in string.gmatch(html, pattern) do
       check(newurl, false)
     end
