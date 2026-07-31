@@ -84,7 +84,7 @@ WGET_AT_COMMAND = [WGET_AT]
 #
 # Update this each time you make a non-cosmetic change.
 # It will be added to the WARC files and reported to the tracker.
-VERSION = '20260730.01'
+VERSION = '20260731.01'
 TRACKER_ID = 'recursive'
 TRACKER_HOST = 'legacy-api.arpa.li'
 MULTI_ITEM_SIZE = 100
@@ -364,8 +364,8 @@ class WgetArgs(object):
             '--recursive', '--level=inf',
             '--no-parent',
             '--page-requisites',
-            '--timeout', '30',
-            '--connect-timeout', '1',
+            '--timeout', '60',
+            '--connect-timeout', '10',
             '--tries', 'inf',
             '--span-hosts',
             '--waitretry', '30',
