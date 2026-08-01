@@ -4,6 +4,7 @@ local dns = require("org.conman.dns")
 local http = require("socket.http")
 local https = require("ssl.https")
 local cjson = require("cjson")
+local utf8 = require("utf8")
 local html_entities = require("htmlEntities")
 
 math.randomseed(os.time())
@@ -71,6 +72,16 @@ read_file = function(file, size_limit)
   end
 end
 
+decode_codepoint = function(newurl)
+  newurl = string.gsub(
+    newurl, "\\[uU]([0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F])",
+    function(s)
+      return utf8.char(tonumber(s, 16))
+    end
+  )
+  return newurl
+end
+
 processed = function(url)
   if downloaded[url] or addedtolist[url] then
     return true
@@ -104,7 +115,7 @@ report_bad_item = function(item)
 end
 
 normalize_url = function(url)
-  local candidate_current = string.match(url, "^([^#]+)")
+  local candidate_current = string.match(decode_codepoint(url), "^([^#]+)")
   while true do
     local temp = string.lower(urlparse.unescape(candidate_current))
     if temp == candidate_current then
@@ -342,6 +353,7 @@ is_inner_url = function(url, parenturl, ignore_parent)
 end
 
 discovery_check = function(url, parenturl, do_queue)
+  url = decode_codepoint(url)
   url = html_entities.decode(url)
   local without_params = string.match(url, "^([^%?]+)%?")
   if without_params then
@@ -361,7 +373,7 @@ discovery_check = function(url, parenturl, do_queue)
 end
 
 wget.callbacks.download_child_p = function(urlpos, parent, depth, start_url_parsed, iri, verdict, reason)
-  local url = urlpos["url"]["url"]
+  local url = decode_codepoint(urlpos["url"]["url"])
   local parenturl = parent and parent["url"] or nil
   local decoded = string.gsub(urlparse.unescape(url), "\\/", "/")
   local scheme = string.match(decoded, "\\[\"']([0-9a-zA-Z+%.%-]+):")
@@ -403,6 +415,7 @@ wget.callbacks.get_urls = function(file, url, is_css, iri)
   local html = read_file(file, max_extract_file_size)
 
   local function check(newurl, inline)
+    newurl = decode_codepoint(newurl)
     newurl = string.gsub(html_entities.decode(newurl), "\\/", "/")
     newurl = string.match(newurl, "^%s*(.-)%s*$")
     newurl = urlparse.absolute(url, newurl)
