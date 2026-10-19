@@ -251,6 +251,7 @@ fix_accepted = function(url)
   if not string.match(path, "^/") then
     path = "/" .. path
   end
+  path = string.gsub(path, "\\+$", "")
   return "https://" .. domain .. port .. path
 end
 
@@ -353,8 +354,7 @@ is_inner_url = function(url, parenturl, ignore_parent)
 end
 
 discovery_check = function(url, parenturl, do_queue)
-  url = decode_codepoint(url)
-  url = html_entities.decode(url)
+  url = html_entities.decode(decode_codepoint(url))
   local without_params = string.match(url, "^([^%?]+)%?")
   if without_params then
     discovery_check(without_params, parenturl, do_queue)
@@ -415,8 +415,7 @@ wget.callbacks.get_urls = function(file, url, is_css, iri)
   local html = read_file(file, max_extract_file_size)
 
   local function check(newurl, inline)
-    newurl = decode_codepoint(newurl)
-    newurl = string.gsub(html_entities.decode(newurl), "\\/", "/")
+    newurl = string.gsub(html_entities.decode(decode_codepoint(newurl)), "\\/", "/")
     newurl = string.match(newurl, "^%s*(.-)%s*$")
     newurl = urlparse.absolute(url, newurl)
     if not newurl or not string.match(newurl, "^https?://") then
