@@ -417,6 +417,12 @@ wget.callbacks.get_urls = function(file, url, is_css, iri)
   local function check(newurl, inline)
     newurl = string.gsub(html_entities.decode(decode_codepoint(newurl)), "\\/", "/")
     newurl = string.match(newurl, "^%s*(.-)%s*$")
+    if string.match(newurl, "^https?://[^%s,]+%s+[0-9%.]+[wx]") then
+      for srcset_url in string.gmatch(newurl, "(https?://[^%s,]+)%s+[0-9%.]+[wx]") do
+        check(srcset_url, true)
+      end
+      return
+    end
     newurl = urlparse.absolute(url, newurl)
     if not newurl or not string.match(newurl, "^https?://") then
       return
