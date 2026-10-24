@@ -84,7 +84,7 @@ WGET_AT_COMMAND = [WGET_AT]
 #
 # Update this each time you make a non-cosmetic change.
 # It will be added to the WARC files and reported to the tracker.
-VERSION = '20261019.02'
+VERSION = '20261024.01'
 TRACKER_ID = 'recursive'
 TRACKER_HOST = 'legacy-api.arpa.li'
 MULTI_ITEM_SIZE = 100
@@ -270,7 +270,8 @@ class GetJobConfig(SimpleTask):
             'https://legacy-api.arpa.li/recursive/props',
             params={
                 'prop': prop
-            }
+            },
+            timeout=10
         ).json()[prop]
         item['job_config'] = json.dumps(json.loads(config))
         item.log_output('Got config for job {}.'.format(item['item_job']))
